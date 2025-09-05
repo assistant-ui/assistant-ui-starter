@@ -1,9 +1,9 @@
 "use client";
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { 
+import {
   useChatRuntime,
-  AssistantChatTransport 
+  AssistantChatTransport,
 } from "@assistant-ui/react-ai-sdk";
 import { Thread } from "@/components/assistant-ui/thread";
 import {
@@ -41,7 +41,11 @@ export const Assistant = () => {
               <Breadcrumb>
                 <BreadcrumbList>
                   <BreadcrumbItem className="hidden md:block">
-                    <BreadcrumbLink href="https://www.assistant-ui.com/docs/getting-started" target="_blank" rel="noopener noreferrer">
+                    <BreadcrumbLink
+                      href="https://www.assistant-ui.com/docs/getting-started"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
                       Build Your Own ChatGPT UX
                     </BreadcrumbLink>
                   </BreadcrumbItem>
