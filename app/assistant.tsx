@@ -1,7 +1,10 @@
 "use client";
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import {
+  useChatRuntime,
+  AssistantChatTransport,
+} from "@assistant-ui/react-ai-sdk";
 import { Thread } from "@/components/assistant-ui/thread";
 import {
   SidebarInset,
@@ -20,7 +23,11 @@ import {
 } from "@/components/ui/breadcrumb";
 
 export const Assistant = () => {
-  const runtime = useChatRuntime();
+  const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({
+      api: "/api/chat",
+    }),
+  });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -34,7 +41,11 @@ export const Assistant = () => {
               <Breadcrumb>
                 <BreadcrumbList>
                   <BreadcrumbItem className="hidden md:block">
-                    <BreadcrumbLink href="https://www.assistant-ui.com/docs/getting-started" target="_blank" rel="noopener noreferrer">
+                    <BreadcrumbLink
+                      href="https://www.assistant-ui.com/docs/getting-started"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
                       Build Your Own ChatGPT UX
                     </BreadcrumbLink>
                   </BreadcrumbItem>
