@@ -51,14 +51,6 @@
       background-position: -100% 0;
     }
   }
-  @keyframes shimmer-sweep {
-    from {
-      background-position: 150% 0;
-    }
-    to {
-      background-position: -100% 0;
-    }
-  }
 }
 
 :root {
