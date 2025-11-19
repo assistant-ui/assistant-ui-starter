@@ -1,12 +1,25 @@
 import { openai } from "@ai-sdk/openai";
-import { streamText, UIMessage, convertToModelMessages } from "ai";
+import {
+  streamText,
+  convertToModelMessages,
+  type UIMessage,
+} from "ai";
 
 export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
+
   const result = streamText({
-    model: openai("gpt-5-nano"),
+    model: openai.responses("gpt-5-nano"),
     messages: convertToModelMessages(messages),
+    providerOptions: {
+      openai: {
+        reasoningEffort: "low",
+        reasoningSummary: "auto",
+      },
+    },
   });
 
-  return result.toUIMessageStreamResponse();
+  return result.toUIMessageStreamResponse({
+    sendReasoning: true,
+  });
 }
