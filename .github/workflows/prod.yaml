@@ -1,0 +1,123 @@
+name: deploy on main
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.base.ref || github.ref_name }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: "Log level"
+        required: true
+        default: "debug"
+
+env:
+  APP_NAME: assistant-us-prod
+  FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL_PROD }}
+
+  REPO_DIR: mxrag
+  REPO_URL: ${{ secrets.ALI_DOCKER_REGISTRY }}
+  REPO_USERNAME: ${{ secrets.ALI_DOCKER_REGISTRY_USERNAME_PENGHAO }}
+  REPO_PASSWORD: ${{ secrets.ALI_DOCKER_REGISTRY_PASSWD_PENGHAO }}
+
+permissions:
+  contents: read
+  packages: read
+  security-events: read
+  id-token: read
+
+jobs:
+  docker-opts:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref || github.ref }}
+
+      - name: Get tag
+        shell: bash
+        run: |
+          datetime_now=$(TZ=Asia/Shanghai date "+%Y%m%d%H%M%S")
+          echo "DOCKER_TAG=${datetime_now}" >> $GITHUB_ENV
+
+      - name: Log in to Aliyun ACR
+        run: | 
+          docker login \
+            -u ${{ env.REPO_USERNAME }} \
+            -p ${{ env.REPO_PASSWORD }} \
+            ${{ env.REPO_URL }}
+
+      - name: Build and push Docker image
+        shell: bash
+        run: |
+          docker build -t ${{ env.REPO_URL }}/${{ env.REPO_DIR }}/${{ env.APP_NAME }}:${{ env.DOCKER_TAG }} .
+          docker push ${{ env.REPO_URL }}/${{ env.REPO_DIR }}/${{ env.APP_NAME }}:${{ env.DOCKER_TAG }}
+
+      - name: Download saectl
+        shell: bash
+        run: |
+          wget https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20250314/luedev/saectl-v0.1.5-linux-amd64.tar.gz
+          tar zxf saectl-v0.1.5-linux-amd64.tar.gz
+          sudo mv saectl /usr/bin/
+
+      - name: Restart sae
+        shell: bash
+        env:
+          ALICLOUD_ACCESS_KEY: ${{ secrets.ALICLOUD_ACCESS_KEY_PH }}
+          ALICLOUD_SECRET_KEY: ${{ secrets.ALICLOUD_SECRET_KEY_PH }}
+          ALICLOUD_REGION: ${{ secrets.ALICLOUD_REGION_SAE }}
+        run: |
+          saectl -n prod set image deploy/${{ env.APP_NAME }} main=${{ env.REPO_URL }}/${{ env.REPO_DIR }}/${{ env.APP_NAME }}:${{ env.DOCKER_TAG }}
+
+      - name: Notify Feishu
+        if: always()
+        shell: bash
+        run: |
+          set -x
+          unset http_proxy
+          unset https_proxy
+          cd ${{ github.workspace }}
+          BUILD_STATUS="${{ job.status }}"
+          # COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s"|awk 'NR==1{for (i=1; i<=NF; i++) printf "%s ", $i; print ""}')
+          COMMIT_AUTHOR=$(git log -1 --pretty=format:"%an")
+          COMMIT_SHA=$(git log -1 --pretty=format:"%h")
+          
+          if [ "$BUILD_STATUS" = "success" ]; then
+            STATUS_TEXT=" Success"
+          else
+            STATUS_TEXT=" Failed"
+          fi
+          curl -H "Content-Type: application/json" -d "{
+            \"msg_type\": \"post\",
+            \"content\": {
+              \"post\": {
+                \"zh_cn\": {
+                  \"title\": \"${{ env.APP_NAME }}-prod - ${STATUS_TEXT}\",
+                  \"content\": [
+                    [{\"tag\": \"text\",\"text\": \"Branch: ${{ github.event.pull_request.base.ref || github.ref_name }}\\n\"}],
+                    [{\"tag\": \"text\",\"text\": \"Commit Message: ${COMMIT_MSG}\\n\"}],
+                    [{\"tag\": \"text\",\"text\": \"Author: ${COMMIT_AUTHOR}\\n\"}],
+                    [{\"tag\": \"text\",\"text\": \"Commit SHA: ${COMMIT_SHA}\\n\"}],
+                    [{\"tag\": \"text\",\"text\": \"Build Status: ${STATUS_TEXT}\\n\"}],
+                    [{\"tag\": \"text\",\"text\": \"Docker image tag: ${{ env.DOCKER_TAG }}\\n\"}]
+                  ]
+                }
+              }
+            }
+          }" ${{ env.FEISHU_WEBHOOK_URL }}
+
+          set +x
+
+      - name: Clean workspace
+        if: always()
+        shell: bash
+        run: |
+          rm -rf ${{ github.workspace }}/*
