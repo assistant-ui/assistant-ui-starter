@@ -27,7 +27,7 @@ const ThreadListNew: FC = () => {
         variant="ghost"
       >
         <PlusIcon />
-        New Thread
+        新话题
       </Button>
     </ThreadListPrimitive.New>
   );
@@ -75,7 +75,7 @@ const ThreadListItem: FC = () => {
 const ThreadListItemTitle: FC = () => {
   return (
     <span className="aui-thread-list-item-title text-sm">
-      <ThreadListItemPrimitive.Title fallback="New Chat" />
+      <ThreadListItemPrimitive.Title fallback="新对话" />
     </span>
   );
 };
@@ -86,7 +86,7 @@ const ThreadListItemArchive: FC = () => {
       <TooltipIconButton
         className="aui-thread-list-item-archive mr-3 ml-auto size-4 p-0 text-foreground hover:text-primary"
         variant="ghost"
-        tooltip="Archive thread"
+        tooltip="保存话题"
       >
         <ArchiveIcon />
       </TooltipIconButton>
